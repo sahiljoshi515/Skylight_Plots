@@ -33,13 +33,6 @@ def plot_clean(theme="light"):
             "vattention": [31.43333333, 56.92166667, 63.755, 77.355, 82.67833333],
             "oracle_topk": [24.4, 37.655, 59.01166667, 72.51166667, 75.82166667],
         },
-        "Qwen3.5": {
-            "group": "Hybrid",
-            "sizes": [0.8, 2, 4, 9],
-            "dense": [81.855, 87.255, 91.245, 89.11166667],
-            "vattention": [81.86666667, 87.03333333, 90.96666667, 88.72166667],
-            "oracle_topk": [79.41166667, 87.645, 91.91166667, 88.27833333],
-        },
     }
 
     fig, ax = plt.subplots(figsize=(14, 5.2))
@@ -47,13 +40,11 @@ def plot_clean(theme="light"):
     bar_step = 0.90
     line_half_width = 0.26
     model_gap = 1.05
-    model_order = ["Llama3", "Qwen2.5", "Qwen3.5"]
+    model_order = ["Llama3", "Qwen2.5"]
 
     xticks, xticklabels = [], []
     group_centers = []
     section_centers = {"Standard": [], "Hybrid": []}
-    x_last_qwen25 = None
-    x_first_qwen35 = None
 
     x_cursor = 0
     trans_blended = blended_transform_factory(ax.transData, ax.transAxes)
@@ -189,21 +180,7 @@ def plot_clean(theme="light"):
         group_centers.append(gc)
         section_centers[model_data["group"]].append(gc)
 
-        if model_name == "Qwen2.5":
-            x_last_qwen25 = float(xs[-1])
-        if model_name == "Qwen3.5":
-            x_first_qwen35 = float(xs[0])
-
         x_cursor += len(sizes) * bar_step + model_gap
-
-    if x_last_qwen25 is not None and x_first_qwen35 is not None:
-        ax.axvline(
-            0.5 * (x_last_qwen25 + x_first_qwen35),
-            color="gray",
-            linestyle="--",
-            linewidth=1.5,
-            alpha=0.55,
-        )
 
     ax.set_ylabel("Accuracy (%)", color=text_color, fontsize=fs_ylabel, labelpad=16)
     ax.yaxis.label.set_fontsize(fs_ylabel)
@@ -248,9 +225,14 @@ def plot_clean(theme="light"):
         ),
     ]
 
-    mean_std = float(np.mean(section_centers["Standard"]))
-    mean_hyb = float(np.mean(section_centers["Hybrid"]))
-    mid_legend_x = 0.5 * (mean_std + mean_hyb)
+    std_centers = section_centers["Standard"]
+    hyb_centers = section_centers["Hybrid"]
+    mean_std = float(np.mean(std_centers)) if std_centers else float("nan")
+    mean_hyb = float(np.mean(hyb_centers)) if hyb_centers else float("nan")
+    if hyb_centers:
+        mid_legend_x = 0.5 * (mean_std + mean_hyb)
+    else:
+        mid_legend_x = mean_std
     trans_top = blended_transform_factory(ax.transData, ax.transAxes)
     y_top_row = 1.17
     leg_face = "white" if theme == "light" else "#2a2a2a"
@@ -284,30 +266,19 @@ def plot_clean(theme="light"):
         color=text_color,
         zorder=11,
     )
-    ax.text(
-        mean_std,
-        y_top_row,
-        "Standard",
-        transform=trans_top,
-        ha="center",
-        va="center",
-        fontsize=fs,
-        fontweight="bold",
-        color=text_color,
-        zorder=11,
-    )
-    ax.text(
-        mean_hyb,
-        y_top_row,
-        "Hybrid",
-        transform=trans_top,
-        ha="center",
-        va="center",
-        fontsize=fs,
-        fontweight="bold",
-        color=text_color,
-        zorder=11,
-    )
+    if hyb_centers:
+        ax.text(
+            mean_hyb,
+            y_top_row,
+            "Hybrid",
+            transform=trans_top,
+            ha="center",
+            va="center",
+            fontsize=fs,
+            fontweight="bold",
+            color=text_color,
+            zorder=11,
+        )
 
     plt.subplots_adjust(bottom=0.24, left=0.13, right=0.99, top=0.76)
     plt.show()
