@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-FONT_SCALE = 4
-BASE_FONT_SIZE = 10
+from paper_style import apply_paper_rcparams
+
+apply_paper_rcparams("light")
 
 data = {
     "Qwen3.5": {
@@ -39,7 +40,7 @@ def plot_bar_by_k():
     x = np.arange(len(ks))
     bar_width = 0.14
 
-    plt.figure(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(10, 4.2))
 
     colors = plt.cm.tab10.colors
 
@@ -52,53 +53,49 @@ def plot_bar_by_k():
 
         offset = (i - (len(sizes) - 1) / 2) * bar_width
 
-        plt.bar(
+        ax.bar(
             x + offset,
             scores,
             width=bar_width,
             color=colors[i % len(colors)],
             edgecolor="black",
-            linewidth=1.0,
+            linewidth=0.6,
             label=f"{size}B",
         )
 
-        # Optional value labels
         for xx, yy in zip(x + offset, scores):
-            plt.text(
+            ax.text(
                 xx,
-                yy + 1.0,
+                yy + 2.5,
                 f"{yy:.1f}",
                 ha="center",
                 va="bottom",
-                fontsize=BASE_FONT_SIZE * 1.8,
-                rotation=90,
+                fontsize=7.0,
+                rotation=0,
             )
 
-    plt.xlabel("top-$k$", fontsize=BASE_FONT_SIZE * FONT_SCALE)
-    plt.ylabel("RULER-HARD-32K Performance", fontsize=BASE_FONT_SIZE * FONT_SCALE)
+    ax.set_ylabel("RULER-HARD-32K performance (%)")
 
-    plt.xticks(
-        x,
-        [str(k) for k in ks],
-        fontsize=BASE_FONT_SIZE * FONT_SCALE,
-    )
-    plt.yticks(fontsize=BASE_FONT_SIZE * FONT_SCALE)
+    ax.set_xticks(x, [str(k) for k in ks])
+    ax.tick_params(axis="x", labelsize=8)
+    ax.tick_params(axis="y", labelsize=8)
 
-    plt.ylim(0, 100)
-    plt.grid(True, axis="y", linestyle="--", alpha=0.4)
+    ax.set_ylim(0, 102)
+    ax.grid(True, axis="y", linestyle="--", alpha=0.4)
+    ax.margins(x=0.02)
 
-    plt.legend(
-        # title="Model Size",
-        fontsize=BASE_FONT_SIZE * 1.8,
-        title_fontsize=BASE_FONT_SIZE * 1.8,
+    ax.legend(
+        title="Model size",
         ncol=len(sizes),
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.08),
+        bbox_to_anchor=(0.5, -0.22),
+        frameon=True,
+        fancybox=False,
+        edgecolor="0.6",
     )
 
-    plt.title("", fontsize=BASE_FONT_SIZE * FONT_SCALE)
-
-    plt.tight_layout()
+    ax.set_xlabel(r"top-$k$", labelpad=10)
+    fig.subplots_adjust(bottom=0.3, left=0.1, right=0.98, top=0.94)
     plt.show()
 
 

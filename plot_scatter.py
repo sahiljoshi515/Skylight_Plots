@@ -3,8 +3,9 @@ from datetime import datetime
 import matplotlib.dates as mdates
 import matplotlib.patheffects as pe
 
-FONT_SCALE = 5
-BASE_FONT_SIZE = 10
+from paper_style import apply_paper_rcparams
+
+apply_paper_rcparams("light")
 
 data = {
     "Llama3": {
@@ -60,7 +61,7 @@ data = {
 }
 
 def plot_relative_sparse_performance():
-    fig, ax = plt.subplots(figsize=(12, 6))
+    fig, ax = plt.subplots(figsize=(10.5, 4.8))
     y_min, y_max = 80, 110
     label_y = y_min + 0.8
     placed_annotation_positions = []
@@ -122,11 +123,11 @@ def plot_relative_sparse_performance():
             ax.scatter(
                 plot_date,
                 rel_perf,
-                s=540,
+                s=160,
                 marker=markers[sparsity],
                 color=model_colors[model],
                 edgecolors="black",
-                linewidths=2.2,
+                linewidths=1.1,
                 zorder=3,
                 label=sparsity if model == list(data.keys())[0] else None,
             )
@@ -174,24 +175,24 @@ def plot_relative_sparse_performance():
                 f"{rel_perf:.1f}",
                 ha=chosen_ha,
                 va=chosen_va,
-                fontsize=BASE_FONT_SIZE * 2.5,
-                fontweight="bold",
+                fontsize=7.5,
+                fontweight="normal",
                 color="black",
                 zorder=5,
             )
             annotation_text.set_path_effects([
-                pe.withStroke(linewidth=3.2, foreground="white")
+                pe.withStroke(linewidth=2.0, foreground="white", alpha=0.9)
             ])
             placed_annotation_positions.append((chosen_x, chosen_y))
 
         # Model label below the cluster
         ax.text(
-            datetime.strptime(d["date"], "%Y-%m"),
+            mdates.date2num(datetime.strptime(d["date"], "%Y-%m")),
             label_y,
             model,
             ha="center",
             va="bottom",
-            fontsize=BASE_FONT_SIZE * 1.8,
+            fontsize=8.5,
             fontweight="bold",
         )
 
@@ -203,29 +204,29 @@ def plot_relative_sparse_performance():
         alpha=0.8,
     )
 
-    # ax.set_xlabel("Model Release Date", fontsize=BASE_FONT_SIZE * FONT_SCALE)
-    # ax.set_ylabel("Relative Performance", fontsize=BASE_FONT_SIZE * FONT_SCALE)
+    ax.set_xlabel("Model release date", labelpad=10)
+    ax.set_ylabel("Relative sparse vs. dense performance (%)")
 
     ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %Y"))
-    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=3))
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=4))
 
-    ax.tick_params(axis="x", labelsize=BASE_FONT_SIZE * 2.1, rotation=35)
-    ax.tick_params(axis="y", labelsize=BASE_FONT_SIZE * 2.2)
+    ax.tick_params(axis="x", labelsize=8, rotation=30)
+    ax.tick_params(axis="y", labelsize=8)
 
     ax.set_ylim(y_min, y_max)
     ax.grid(True, linestyle="--", alpha=0.4)
 
     ax.legend(
         title="Sparsity",
-        fontsize=BASE_FONT_SIZE * 1.9,
-        title_fontsize=BASE_FONT_SIZE * 2.0,
         loc="upper center",
-        bbox_to_anchor=(0.5, 1.18),
+        bbox_to_anchor=(0.5, -0.22),
         ncol=4,
         frameon=True,
+        fancybox=False,
+        edgecolor="0.6",
     )
 
-    plt.tight_layout()
+    plt.subplots_adjust(bottom=0.28, left=0.1, right=0.98, top=0.94)
     plt.show()
 
 

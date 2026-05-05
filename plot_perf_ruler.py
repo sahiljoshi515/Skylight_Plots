@@ -1,22 +1,22 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+from matplotlib.transforms import blended_transform_factory
 
-FONT_SCALE = 4.5
-BASE_FONT_SIZE = 9
+from bar_plot_common import MODEL_FILL_COLORS, setup_mpl_fonts, theme_colors
+from paper_style import apply_paper_rcparams
+
 
 def plot_clean(theme="light"):
-    if theme == "dark":
-        plt.style.use("dark_background")
-        grid_alpha = 0.2
-        edge_color = "white"
-        text_color = "white"
-    else:
-        plt.style.use("default")
-        grid_alpha = 0.35
-        edge_color = "black"
-        text_color = "black"
+    apply_paper_rcparams(theme)
+    tc = theme_colors(theme)
+    grid_alpha = tc["grid_alpha"]
+    edge_color = tc["edge_color"]
+    text_color = tc["text_color"]
+    dense_text_color = tc["dense_text_color"]
+    color_50x = tc["color_s1"]
+    color_5x = tc["color_s2"]
 
     data = {
         "Llama3": {
@@ -56,230 +56,301 @@ def plot_clean(theme="light"):
         },
     }
 
-    fig, ax = plt.subplots(figsize=(18, 7))
+    fig, ax = plt.subplots(figsize=(16, 5.2))
 
-    colors = plt.cm.tab10.colors
-    bar_width = 0.72
-    bar_step = 0.82
-    line_half_width = 0.31
-    model_gap = 0.8
-    section_gap = 1.5
+    bar_width = 0.70
+    bar_step = 0.90
+    line_half_width = 0.26
+    model_gap = 1.05
 
     model_order = ["Llama3", "Qwen2.5", "Ministral3", "Qwen3.5", "Gemma3"]
-    annotation_fontsize = BASE_FONT_SIZE * 2
 
     xticks, xticklabels = [], []
     group_centers = []
     section_centers = {"Standard": [], "Hybrid": []}
+    x_last_ministral = None
+    x_first_qwen35 = None
 
     x_cursor = 0
+    trans_blended = blended_transform_factory(ax.transData, ax.transAxes)
+
+    fs = 18
+    fs_ylabel = 24
+    setup_mpl_fonts(fs, fs_ylabel)
+    # Same y for every dense label (performance % scale), just above the axis
+    dense_label_y = 1.0
 
     for i, model_name in enumerate(model_order):
         model_data = data[model_name]
-        base_color = colors[i % len(colors)]
+        base_color = MODEL_FILL_COLORS[i % len(MODEL_FILL_COLORS)]
 
         sizes = model_data["sizes"]
-        # Keep x positions length-exact even when x_cursor is fractional.
         xs = x_cursor + np.arange(len(sizes), dtype=float) * bar_step
 
         dense = np.array(model_data["dense"])
         s50 = np.array(model_data["sparse_50x"])
         s5 = np.array(model_data["sparse_5x"])
 
-        # ---- Dense bars ----
         ax.bar(
             xs,
             dense,
             width=bar_width,
             color=base_color,
             edgecolor=edge_color,
-            linewidth=1.0,
+            linewidth=0.9,
             zorder=2,
         )
 
-        for x, y in zip(xs, dense):
+        for x, d in zip(xs, dense):
             ax.text(
                 x,
-                y * 0.5,
-                f"{y:.1f}",
+                dense_label_y,
+                f"{d:.1f}",
                 ha="center",
-                va="center",
-                fontsize=annotation_fontsize,
-                color="black",
-                fontweight="bold",
-                bbox=dict(facecolor="white", edgecolor="none", alpha=0.65, boxstyle="round,pad=0.08"),
-                zorder=8,
+                va="bottom",
+                fontsize=fs,
+                color=dense_text_color,
+                fontweight="normal",
+                zorder=10,
             )
 
-        # ---- 50× ----
         for x, y in zip(xs, s50):
             ax.hlines(
                 y,
                 x - line_half_width,
                 x + line_half_width,
-                colors=text_color,
+                colors=color_50x,
                 linestyles="--",
-                linewidth=2.2,
+                linewidth=1.8,
+                alpha=0.85,
                 zorder=6,
             )
             ax.scatter(
                 x,
                 y,
-                s=110,
-                marker="o",
-                color=base_color,
-                edgecolor=edge_color,
-                linewidth=1.5,
+                s=220,
+                marker="x",
+                c=color_50x,
+                linewidths=1.2,
                 zorder=7,
             )
 
-        # ---- 5× ----
         for x, y in zip(xs, s5):
             ax.hlines(
                 y,
                 x - line_half_width,
                 x + line_half_width,
-                colors=text_color,
+                colors=color_5x,
                 linestyles=":",
-                linewidth=2.6,
+                linewidth=2.0,
+                alpha=0.9,
                 zorder=6,
             )
             ax.scatter(
                 x,
                 y,
-                s=110,
-                marker="D",
-                color=base_color,
-                edgecolor=edge_color,
-                linewidth=1.5,
+                s=120,
+                marker="+",
+                c=color_5x,
+                linewidths=2.0,
                 zorder=7,
             )
 
-        # Keep higher-value annotation above lower-value annotation, and
-        # increase separation when values are close to avoid overlap.
-        for idx, (x, y50, y5) in enumerate(zip(xs, s50, s5)):
+        for x, y50, y5 in zip(xs, s50, s5):
             gap = abs(y50 - y5)
-            if model_name == "Qwen3.5":
-                # Qwen3.5 points are tightly clustered; use stronger spacing.
-                offset = 0.85 + max(0.0, 2.4 - gap) * 0.9
-                x_shift = 0.14 + (0.05 if idx % 2 else 0.0)
+            off_lo = 11 if gap > 2.5 else 13
+            off_hi = 11 if gap > 2.5 else 13
+            if y50 <= y5:
+                ax.annotate(
+                    f"{y50:.1f}",
+                    xy=(x, y50),
+                    xytext=(0, -off_lo),
+                    textcoords="offset points",
+                    ha="center",
+                    va="top",
+                    fontsize=fs,
+                    color=color_50x,
+                    zorder=11,
+                )
+                ax.annotate(
+                    f"{y5:.1f}",
+                    xy=(x, y5),
+                    xytext=(0, off_hi),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                    fontsize=fs,
+                    color=color_5x,
+                    zorder=11,
+                )
             else:
-                offset = 0.55 + max(0.0, 1.6 - gap) * 0.7
-                x_shift = 0.08
+                ax.annotate(
+                    f"{y5:.1f}",
+                    xy=(x, y5),
+                    xytext=(0, -off_lo),
+                    textcoords="offset points",
+                    ha="center",
+                    va="top",
+                    fontsize=fs,
+                    color=color_5x,
+                    zorder=11,
+                )
+                ax.annotate(
+                    f"{y50:.1f}",
+                    xy=(x, y50),
+                    xytext=(0, off_hi),
+                    textcoords="offset points",
+                    ha="center",
+                    va="bottom",
+                    fontsize=fs,
+                    color=color_50x,
+                    zorder=11,
+                )
 
-            if y50 >= y5:
-                y50_text, va50 = y50 + offset, "bottom"
-                y5_text, va5 = y5 - offset, "top"
-            else:
-                y50_text, va50 = y50 - offset, "top"
-                y5_text, va5 = y5 + offset, "bottom"
-
-            ax.text(
-                x + x_shift,
-                y50_text,
-                f"{y50:.1f}",
-                ha="left",
-                va=va50,
-                fontsize=annotation_fontsize,
-                color="black",
-                fontweight="bold",
-                bbox=dict(facecolor="white", edgecolor="none", alpha=0.75, boxstyle="round,pad=0.08"),
-                zorder=8,
-            )
-            ax.text(
-                x - x_shift,
-                y5_text,
-                f"{y5:.1f}",
-                ha="right",
-                va=va5,
-                fontsize=annotation_fontsize,
-                color="black",
-                fontweight="bold",
-                bbox=dict(facecolor="white", edgecolor="none", alpha=0.75, boxstyle="round,pad=0.08"),
-                zorder=8,
-            )
+        gc = float(xs.mean())
+        ax.text(
+            gc,
+            -0.17,
+            model_name,
+            transform=trans_blended,
+            ha="center",
+            va="top",
+            fontsize=fs,
+            fontweight="bold",
+            color=text_color,
+        )
 
         xticks.extend(xs)
         xticklabels.extend([f"{s}B" for s in sizes])
-        group_centers.append(xs.mean())
-        section_centers[model_data["group"]].append(xs.mean())
+        group_centers.append(gc)
+        section_centers[model_data["group"]].append(gc)
+
+        if model_name == "Ministral3":
+            x_last_ministral = float(xs[-1])
+        if model_name == "Qwen3.5":
+            x_first_qwen35 = float(xs[0])
 
         x_cursor += len(sizes) * bar_step + model_gap
-        if model_name == "Ministral3":
-            x_cursor += section_gap
 
-    # ---- Section labels ----
-    for section, centers in section_centers.items():
-        ax.text(
-            np.mean(centers),
-            1.02,
-            section,
-            ha="center",
-            va="bottom",
-            transform=ax.get_xaxis_transform(),
-            fontsize=BASE_FONT_SIZE * 3.0,
-            fontweight="bold",
+    if x_last_ministral is not None and x_first_qwen35 is not None:
+        divider_x = 0.5 * (x_last_ministral + x_first_qwen35)
+        ax.axvline(
+            divider_x,
+            color="gray",
+            linestyle="--",
+            linewidth=1.5,
+            alpha=0.55,
         )
 
-    # Divider
-    ax.axvline(
-        (group_centers[2] + group_centers[3]) / 2,
-        color="gray",
-        linestyle="--",
-        linewidth=2,
-        alpha=0.5,
-    )
-
-    ax.set_ylabel("RULER-HARD-32K Performance", fontsize=BASE_FONT_SIZE * FONT_SCALE)
-    # ax.set_xlabel("Model Size grouped by Family", fontsize=BASE_FONT_SIZE * FONT_SCALE, labelpad=35)
+    ax.set_ylabel("Accuracy (%)", color=text_color, fontsize=fs_ylabel, labelpad=16)
+    ax.yaxis.label.set_fontsize(fs_ylabel)
+    ylabel_x_axes = -0.055
+    ax.yaxis.set_label_coords(ylabel_x_axes, 0.5)
 
     ax.set_xticks(xticks)
-    ax.set_xticklabels(xticklabels, fontsize=BASE_FONT_SIZE * 2.2, rotation=35, ha="right")
+    ax.set_xticklabels(xticklabels, rotation=42, ha="right", fontsize=fs, color=text_color)
 
-    ax.tick_params(axis="y", labelsize=BASE_FONT_SIZE * FONT_SCALE)
+    ax.tick_params(axis="y", labelsize=fs, colors=text_color)
+    ax.tick_params(axis="x", labelsize=fs, pad=3, colors=text_color)
 
     ax.grid(True, axis="y", linestyle="--", alpha=grid_alpha)
     ax.set_ylim(0, 100)
-
-    # ---- Legends ----
-    model_handles = [
-        Patch(facecolor=colors[i % len(colors)], edgecolor=edge_color, label=name)
-        for i, name in enumerate(model_order)
-    ]
+    ax.margins(x=0.01, y=0.05)
 
     measurement_handles = [
-        Patch(facecolor="gray", label="Dense"),
-        Line2D([0], [0], color=text_color, linestyle="--", marker="o", markersize=12, linewidth=2.4, label="50×"),
-        Line2D([0], [0], color=text_color, linestyle=":", marker="D", markersize=12, linewidth=2.8, label="5×"),
+        Patch(facecolor="#c8c8c8", edgecolor=edge_color, linewidth=0.8, label="Dense"),
+        Line2D(
+            [0],
+            [0],
+            color=color_50x,
+            linestyle="--",
+            marker="x",
+            markersize=12,
+            markerfacecolor=color_50x,
+            markeredgecolor=color_50x,
+            linewidth=1.6,
+            label="50×",
+        ),
+        Line2D(
+            [0],
+            [0],
+            color=color_5x,
+            linestyle=":",
+            marker="+",
+            markersize=11,
+            markerfacecolor=color_5x,
+            markeredgecolor=color_5x,
+            markeredgewidth=2.0,
+            linewidth=1.8,
+            label="5×",
+        ),
     ]
 
-    legend1 = ax.legend(
-        handles=model_handles,
-        # title="Model Family",
-        # title_fontsize=BASE_FONT_SIZE * 1.5,
-        loc="upper center",
-        bbox_to_anchor=(0.3, 1.18),
-        ncol=5,
-        fontsize=BASE_FONT_SIZE * 2,
-    )
+    mean_std = float(np.mean(section_centers["Standard"]))
+    mean_hyb = float(np.mean(section_centers["Hybrid"]))
+    mid_legend_x = 0.5 * (mean_std + mean_hyb)
+    trans_top = blended_transform_factory(ax.transData, ax.transAxes)
+    y_top_row = 1.17
 
-    legend2 = ax.legend(
+    leg_face = "white" if theme == "light" else "#2a2a2a"
+    ax.legend(
         handles=measurement_handles,
-        title="Sparsity",
-        title_fontsize=BASE_FONT_SIZE * 1.8,
-        loc="upper center",
-        bbox_to_anchor=(0.85, 1.18),
         ncol=3,
-        fontsize=BASE_FONT_SIZE * 1.55,
-        handlelength=2.2,
-        handleheight=1.4,
+        loc="center",
+        bbox_to_anchor=(mid_legend_x, y_top_row),
+        bbox_transform=trans_top,
+        frameon=True,
+        fancybox=False,
+        edgecolor="0.55",
+        facecolor=leg_face,
+        framealpha=0.98,
+        fontsize=fs,
+        columnspacing=1.2,
+        handletextpad=0.5,
+        borderpad=0.28,
     )
 
-    ax.add_artist(legend1)
+    ax.text(
+        ylabel_x_axes,
+        y_top_row,
+        "RULER-HARD-32K",
+        transform=ax.transAxes,
+        ha="left",
+        va="center",
+        fontsize=fs,
+        fontweight="bold",
+        color=text_color,
+        zorder=11,
+    )
 
-    plt.subplots_adjust(top=0.75, bottom=0.18)
+    ax.text(
+        mean_std,
+        y_top_row,
+        "Standard",
+        transform=trans_top,
+        ha="center",
+        va="center",
+        fontsize=fs,
+        fontweight="bold",
+        color=text_color,
+        zorder=11,
+    )
+    ax.text(
+        mean_hyb,
+        y_top_row,
+        "Hybrid",
+        transform=trans_top,
+        ha="center",
+        va="center",
+        fontsize=fs,
+        fontweight="bold",
+        color=text_color,
+        zorder=11,
+    )
+
+    plt.subplots_adjust(bottom=0.24, left=0.13, right=0.99, top=0.76)
     plt.show()
 
 
 plot_clean("light")
-plot_clean("dark")
+# plot_clean("dark")
