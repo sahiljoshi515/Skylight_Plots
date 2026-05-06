@@ -36,10 +36,10 @@ def plot_clean(theme="light"):
     }
 
     fig, ax = plt.subplots(figsize=(14, 5.2))
-    bar_width = 0.70
-    bar_step = 0.90
-    line_half_width = 0.26
-    model_gap = 1.05
+    bar_width = 0.32
+    bar_step = 0.48
+    line_half_width = 0.14
+    model_gap = 0.45
     model_order = ["Llama3", "Qwen2.5"]
 
     xticks, xticklabels = [], []
@@ -48,8 +48,8 @@ def plot_clean(theme="light"):
 
     x_cursor = 0
     trans_blended = blended_transform_factory(ax.transData, ax.transAxes)
-    fs = 18
-    fs_ylabel = 24
+    fs = 24
+    fs_ylabel = 30
     setup_mpl_fonts(fs, fs_ylabel)
     dense_label_y = 1.0
 
@@ -182,7 +182,7 @@ def plot_clean(theme="light"):
 
         x_cursor += len(sizes) * bar_step + model_gap
 
-    ax.set_ylabel("Accuracy (%)", color=text_color, fontsize=fs_ylabel, labelpad=16)
+    ax.set_ylabel("Accuracy (%)", color=text_color, fontsize=fs_ylabel, labelpad=30)
     ax.yaxis.label.set_fontsize(fs_ylabel)
     ylabel_x_axes = -0.055
     ax.yaxis.set_label_coords(ylabel_x_axes, 0.5)
@@ -233,6 +233,7 @@ def plot_clean(theme="light"):
         mid_legend_x = 0.5 * (mean_std + mean_hyb)
     else:
         mid_legend_x = mean_std
+    legend_x = mid_legend_x + 1.0
     trans_top = blended_transform_factory(ax.transData, ax.transAxes)
     y_top_row = 1.17
     leg_face = "white" if theme == "light" else "#2a2a2a"
@@ -241,7 +242,7 @@ def plot_clean(theme="light"):
         handles=measurement_handles,
         ncol=3,
         loc="center",
-        bbox_to_anchor=(mid_legend_x, y_top_row),
+        bbox_to_anchor=(legend_x, y_top_row),
         bbox_transform=trans_top,
         frameon=True,
         fancybox=False,
