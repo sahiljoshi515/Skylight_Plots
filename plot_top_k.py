@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from bar_plot_common import MODEL_FILL_COLORS
 from paper_style import apply_paper_rcparams
 
 apply_paper_rcparams("light")
@@ -37,12 +38,13 @@ def plot_bar_by_k():
     ks = sorted(topk_data.keys())
     sizes = topk_data[ks[0]]["sizes"]
 
-    x = np.arange(len(ks))
-    bar_width = 0.14
+    x = np.arange(len(ks)) * 0.82
+    bar_width = 0.13
 
-    fig, ax = plt.subplots(figsize=(10, 4.2))
+    fig, ax = plt.subplots(figsize=(12, 5.6))
 
-    colors = plt.cm.tab10.colors
+    colors = MODEL_FILL_COLORS
+    bar_annotations = []
 
     for i, size in enumerate(sizes):
         scores = []
@@ -53,49 +55,77 @@ def plot_bar_by_k():
 
         offset = (i - (len(sizes) - 1) / 2) * bar_width
 
-        ax.bar(
+        bars = ax.bar(
             x + offset,
             scores,
             width=bar_width,
             color=colors[i % len(colors)],
-            edgecolor="black",
+            edgecolor="#6a6a6a",
             linewidth=0.6,
             label=f"{size}B",
         )
 
-        for xx, yy in zip(x + offset, scores):
-            ax.text(
-                xx,
-                yy + 2.5,
-                f"{yy:.1f}",
-                ha="center",
-                va="bottom",
-                fontsize=7.0,
-                rotation=0,
-            )
+        for bar, yy in zip(bars, scores):
+            bar_annotations.append((bar.get_x() + bar.get_width() / 2, yy))
 
-    ax.set_ylabel("RULER-HARD-32K performance (%)")
+    fig.canvas.draw()
+    bar_width_pixels = abs(ax.transData.transform((bar_width, 0))[0] - ax.transData.transform((0, 0))[0])
+    annotation_fontsize = 28
+    fs = 26
+    text_color = "#1f1f1f"
+
+    for xx, yy in bar_annotations:
+        ax.text(
+            xx,
+            yy * 0.5,
+            f"{yy:.1f}",
+            ha="center",
+            va="center",
+            fontsize=annotation_fontsize,
+            fontweight="bold",
+            rotation=90,
+            color="#1f1f1f",
+        )
+
+    ax.set_ylabel("Accuracy (%)", fontsize=30)
 
     ax.set_xticks(x, [str(k) for k in ks])
-    ax.tick_params(axis="x", labelsize=8)
-    ax.tick_params(axis="y", labelsize=8)
+    ax.tick_params(axis="x", labelsize=26)
+    ax.tick_params(axis="y", labelsize=26)
 
     ax.set_ylim(0, 102)
     ax.grid(True, axis="y", linestyle="--", alpha=0.4)
     ax.margins(x=0.02)
 
     ax.legend(
-        title="Model size",
+        # title="Model size",
         ncol=len(sizes),
-        loc="upper center",
-        bbox_to_anchor=(0.5, -0.22),
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.01),
         frameon=True,
         fancybox=False,
         edgecolor="0.6",
+        fontsize=15,
+        title_fontsize=16,
     )
 
-    ax.set_xlabel(r"top-$k$", labelpad=10)
-    fig.subplots_adjust(bottom=0.3, left=0.1, right=0.98, top=0.94)
+    ylabel_x_axes = -0.055
+    y_top_row = 1.08
+    ax.text(
+        ylabel_x_axes,
+        y_top_row,
+        "RULER-HARD-32K",
+        transform=ax.transAxes,
+        ha="left",
+        va="center",
+        fontsize=fs,
+        fontweight="bold",
+        color=text_color,
+        zorder=11,
+    )
+
+    ax.set_xlabel(r"top-$k$", labelpad=10, fontsize=30)
+    fig.subplots_adjust(bottom=0.2, left=0.1, right=0.98, top=0.9)
     plt.show()
 
 
