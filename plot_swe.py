@@ -38,7 +38,7 @@ def plot_clean():
         alpha=0.5,
     )
 
-    ax.set_title("Django SWEBench", fontsize=28)
+    ax.set_title("Qwen3.5-27B on Django SWEBench", fontsize=28)
     ax.set_ylabel("# Instances", fontsize=28)
     ax.set_xticks(x)
     ax.set_xticklabels(configs, fontsize=26)
